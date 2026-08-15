@@ -72,7 +72,10 @@ def build_weeks(year, month, holidays_by_date):
 
 def run(input):
     today = date.today()
-    holidays = [h for h in input["data"] if is_relevant(h)]
+    # trmnlp's local dev server wraps an array-root polling response as
+    # {"data": [...]}; the production runtime passes the raw array directly.
+    raw_holidays = input["data"] if isinstance(input, dict) else input
+    holidays = [h for h in raw_holidays if is_relevant(h)]
     # A date can carry more than one relevant holiday (e.g. a national and a
     # regional one falling on the same day), so each date maps to a list.
     holidays_by_date = {}
