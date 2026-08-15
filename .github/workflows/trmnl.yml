@@ -28,6 +28,8 @@ jobs:
           ruby-version: "4.0"
       - run: gem install trmnl_preview
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg imagemagick
+        env:
+          DEBIAN_FRONTEND: noninteractive
       - run: mkdir -p docs
       - run: |
           trmnlp serve &
