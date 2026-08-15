@@ -1,0 +1,80 @@
+name: TRMNL
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+      - run: gem install trmnl_preview
+      - run: trmnlp lint
+
+  preview:
+    needs: lint
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+      - run: gem install trmnl_preview
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg imagemagick
+      - run: mkdir -p docs
+      - run: |
+          trmnlp serve &
+          SERVE_PID=$!
+          sleep 10
+          curl -s http://localhost:4567/render/full.png > /tmp/1_full.png
+          curl -s http://localhost:4567/render/half_horizontal.png > /tmp/2_half_horizontal.png
+          curl -s http://localhost:4567/render/half_vertical.png > /tmp/3_half_vertical.png
+          curl -s http://localhost:4567/render/quadrant.png > /tmp/4_quadrant.png
+          kill $SERVE_PID || true
+      - name: Crop each layout to its device-cell geometry, pad to a common canvas
+        run: |
+          convert /tmp/1_full.png -crop 800x480+0+0 +repage -gravity center -background white -extent 800x480 /tmp/f1.png
+          convert /tmp/2_half_horizontal.png -crop 800x240+0+0 +repage -gravity center -background white -extent 800x480 /tmp/f2.png
+          convert /tmp/3_half_vertical.png -crop 400x480+0+0 +repage -gravity center -background white -extent 800x480 /tmp/f3.png
+          convert /tmp/4_quadrant.png -crop 400x240+0+0 +repage -gravity center -background white -extent 800x480 /tmp/f4.png
+      - run: |
+          cat > /tmp/concat.txt << 'EOF'
+          file 'f1.png'
+          duration 2
+          file 'f2.png'
+          duration 2
+          file 'f3.png'
+          duration 2
+          file 'f4.png'
+          duration 2
+          file 'f1.png'
+          duration 0.04
+          EOF
+          ffmpeg -f concat -safe 0 -i /tmp/concat.txt \
+                  -vf "fps=10,split[x][z]; [x]palettegen[p]; [z][p]paletteuse" \
+                  -loop 0 docs/demo.gif -y
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "docs: update demo GIF [skip ci]"
+          file_pattern: "docs/demo.gif"
+
+  push:
+    needs: lint
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "4.0"
+      - run: gem install trmnl_preview
+      - run: trmnlp push --force
+        env:
+          TRMNL_API_KEY: ${{ secrets.TRMNL_API_KEY }}

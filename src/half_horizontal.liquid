@@ -1,0 +1,42 @@
+<div class="layout gap--xsmall">
+  <div class="columns layout--center gap--medium">
+    <div class="column w--auto">
+      <span class="value text--large">{{ month_label }}</span>
+    </div>
+    <div class="column">
+      {% if upcoming.size > 0 %}
+      <span class="label">{{ upcoming[0].short_date }} · {{ upcoming[0].name }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="grid grid--cols-7 gap--xsmall">
+    {% for wd in weekday_labels %}
+    <div class="item"><div class="content"><span class="label text--small">{{ wd }}</span></div></div>
+    {% endfor %}
+    {% for week in weeks %}
+      {% for d in week %}
+      <div class="item">
+        <div class="content">
+          {% if d.in_month == false %}
+          <span class="value text--small">&nbsp;</span>
+          {% elsif d.is_today %}
+          <span class="label label--inverted text--small">{{ d.day }}</span>
+          {% elsif d.is_dim %}
+          <span class="value text--small text--gray-50">{{ d.day }}</span>
+          {% else %}
+          <span class="value text--small">{{ d.day }}</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+
+<div class="title_bar">
+  <span class="title">Calendar</span>
+  {% if upcoming.size > 0 %}
+  <span class="instance">Next: {{ upcoming[0].name }}</span>
+  {% endif %}
+</div>
