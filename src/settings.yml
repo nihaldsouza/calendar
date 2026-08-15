@@ -9,7 +9,7 @@ serverless_language: python
 polling_url: https://date.nager.at/api/v3/PublicHolidays/2026/CA
 polling_headers: ''
 polling_body: ''
-id: ''
+id: 443864
 oauth_enabled: 'false'
 oauth_pkce_enabled: 'no'
 oauth_authorize_url: ''
@@ -30,6 +30,6 @@ oauth_token_field_name: ''
 oauth_expiry_field_name: ''
 oauth_expiry_strategy: ''
 oauth_fixed_expiry_ms: ''
-name: Public Holidays
-description: Public holidays for Canada.
+name: Calendar
+description: Canadian public holiday calendar
 refresh_interval: 720
