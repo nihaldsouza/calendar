@@ -27,11 +27,11 @@
   </div>
 
   <div class="layout layout--col layout--start layout--stretch-x grow basis--0 gap--xsmall">
-    {% for h in month_items %}
+    {% for h in upcoming_items %}
     <div class="grid grid--cols-1 gap--none">
-      <span class="label label--inverted {{ holiday_text_class }}" style="background-color: var(--gray-50)">{{ h.short_date }}</span>
+      <span class="label label--inverted text--large" style="background-color: var(--gray-50)">{{ h.short_date }}</span>
       {% for name in h.names %}
-      <span class="value {{ holiday_text_class }}">{{ name }}</span>
+      <span class="value text--large">{{ name }}</span>
       {% endfor %}
     </div>
     {% endfor %}

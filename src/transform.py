@@ -6,6 +6,15 @@ from datetime import date, timedelta
 # plugin this replaces, so behavior stays consistent.
 REGION = "CA-BC"
 
+# Text size in the item list is fixed (no shrink-to-fit), so instead the
+# item count is capped to what actually fits in the list area. Despite the
+# different layouts (stacked under the grid in full/half_vertical, beside
+# it in half_horizontal), the available list height works out the same —
+# half_horizontal's box is only half the device height, offsetting its
+# side-by-side layout advantage. Tuned by rendering dense fixture data
+# locally via trmnlp and counting rows before overflow.
+MAX_ITEMS = 6
+
 
 def is_relevant(holiday):
     if holiday.get("global"):
@@ -205,35 +214,20 @@ def run(input):
 
     weeks = build_weeks(today.year, today.month, items_by_date)
 
-    month_items = sorted(
+    # Chronological, future-only (today included), spanning any month —
+    # each date contributes one badge line plus one line per item name, at
+    # a fixed text size, so the count that fits is capped per layout rather
+    # than shrinking the font to squeeze more in.
+    upcoming_items = sorted(
         (
             {"date": d, "names": names}
-            for d, names in items_by_date.items()
-            if d[:7] == today.isoformat()[:7]
-        ),
-        key=lambda h: h["date"],
-    )
-    for h in month_items:
-        h_date = date.fromisoformat(h["date"])
-        h["short_date"] = h_date.strftime("%b %-d")
-        h["is_past"] = h_date < today
-
-    upcoming = sorted(
-        (
-            {"date": d, "name": ", ".join(names)}
             for d, names in items_by_date.items()
             if d >= today.isoformat()
         ),
         key=lambda h: h["date"],
     )
-    for h in upcoming:
+    for h in upcoming_items:
         h["short_date"] = date.fromisoformat(h["date"]).strftime("%b %-d")
-
-    # Each date contributes one badge line plus one line per item name.
-    # Past ~6 lines, text--large starts clipping the bottom half on half_vertical,
-    # so drop to text--small to fit a busier month instead of cutting entries off.
-    item_lines = len(month_items) + sum(len(h["names"]) for h in month_items)
-    holiday_text_class = "text--large" if item_lines <= 6 else "text--small"
 
     return {
         "month_label": today.strftime("%B").upper(),
@@ -241,7 +235,5 @@ def run(input):
         "year": today.year,
         "weekday_labels": ["M", "T", "W", "T", "F", "S", "S"],
         "weeks": weeks,
-        "upcoming": upcoming[:3],
-        "month_items": month_items,
-        "holiday_text_class": holiday_text_class,
+        "upcoming_items": upcoming_items[:MAX_ITEMS],
     }
