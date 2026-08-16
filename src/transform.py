@@ -71,30 +71,9 @@ def build_weeks(year, month, holidays_by_date):
 
 
 def run(input):
-    debug_input_type = str(type(input))
-    debug_input_repr = repr(input)[:300]
-    try:
-        return _run(input)
-    except Exception as e:
-        return {
-            "month_label": "DEBUG",
-            "month_short": "DBG",
-            "year": 0,
-            "weekday_labels": [],
-            "weeks": [],
-            "upcoming": [],
-            "month_holidays": [],
-            "holiday_text_class": "text--small",
-            "debug_error": f"{type(e).__name__}: {e}",
-            "debug_input_type": debug_input_type,
-            "debug_input_repr": debug_input_repr,
-        }
-
-
-def _run(input):
     today = date.today()
     # trmnlp's local dev server wraps an array-root polling response as
-    # {"data": [...]}; the production runtime passes the raw array directly.
+    # {"data": [...]}; some production responses pass the raw array directly.
     raw_holidays = input["data"] if isinstance(input, dict) else input
     holidays = [h for h in raw_holidays if is_relevant(h)]
     # A date can carry more than one relevant holiday (e.g. a national and a
@@ -144,7 +123,4 @@ def _run(input):
         "upcoming": upcoming[:3],
         "month_holidays": month_holidays,
         "holiday_text_class": holiday_text_class,
-        "debug_error": "none",
-        "debug_input_type": str(type(input)),
-        "debug_input_repr": repr(input)[:300],
     }
