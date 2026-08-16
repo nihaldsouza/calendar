@@ -16,6 +16,59 @@ REGION = "CA-BC"
 MAX_ITEMS = 6
 
 
+# 2026 F1 qualifying + race sessions only (no practice, no sprint sessions).
+# Times converted from UTC to fixed Pacific Standard Time (UTC-8, no DST
+# adjustment) at conversion time — source: f1calendar.com/timezone/Etc-UTC.
+F1_2026_EVENTS = [
+    ("2026-03-06", "9:00pm Australian Qualifying"),
+    ("2026-03-07", "8:00pm Australian Grand Prix"),
+    ("2026-03-13", "11:00pm Chinese Qualifying"),
+    ("2026-03-14", "11:00pm Chinese Grand Prix"),
+    ("2026-03-27", "10:00pm Japanese Qualifying"),
+    ("2026-03-28", "10:00pm Japanese Grand Prix"),
+    ("2026-05-02", "1:00pm Miami Qualifying"),
+    ("2026-05-03", "10:00am Miami Grand Prix"),
+    ("2026-05-23", "1:00pm Canadian Qualifying"),
+    ("2026-05-24", "1:00pm Canadian Grand Prix"),
+    ("2026-06-06", "7:00am Monaco Qualifying"),
+    ("2026-06-07", "6:00am Monaco Grand Prix"),
+    ("2026-06-13", "7:00am Barcelona Qualifying"),
+    ("2026-06-14", "6:00am Barcelona Grand Prix"),
+    ("2026-06-27", "7:00am Austrian Qualifying"),
+    ("2026-06-28", "6:00am Austrian Grand Prix"),
+    ("2026-07-04", "8:00am British Qualifying"),
+    ("2026-07-05", "7:00am British Grand Prix"),
+    ("2026-07-18", "7:00am Belgian Qualifying"),
+    ("2026-07-19", "6:00am Belgian Grand Prix"),
+    ("2026-07-25", "7:00am Hungarian Qualifying"),
+    ("2026-07-26", "6:00am Hungarian Grand Prix"),
+    ("2026-08-22", "7:00am Dutch Qualifying"),
+    ("2026-08-23", "6:00am Dutch Grand Prix"),
+    ("2026-09-05", "7:00am Italian Qualifying"),
+    ("2026-09-06", "6:00am Italian Grand Prix"),
+    ("2026-09-12", "7:00am Spanish Qualifying"),
+    ("2026-09-13", "6:00am Spanish Grand Prix"),
+    ("2026-09-25", "5:00am Azerbaijan Qualifying"),
+    ("2026-09-26", "4:00am Azerbaijan Grand Prix"),
+    ("2026-10-03", "2:00am Bahrain Qualifying"),
+    ("2026-10-04", "12:00am Bahrain Grand Prix"),
+    ("2026-10-10", "6:00am Singapore Qualifying"),
+    ("2026-10-11", "5:00am Singapore Grand Prix"),
+    ("2026-10-24", "2:00pm United States Qualifying"),
+    ("2026-10-25", "12:00pm United States Grand Prix"),
+    ("2026-10-31", "1:00pm Mexico City Qualifying"),
+    ("2026-11-01", "12:00pm Mexico City Grand Prix"),
+    ("2026-11-07", "10:00am Brazilian Qualifying"),
+    ("2026-11-08", "9:00am Brazilian Grand Prix"),
+    ("2026-11-20", "8:00pm Las Vegas Qualifying"),
+    ("2026-11-21", "8:00pm Las Vegas Grand Prix"),
+    ("2026-11-28", "10:00am Qatar Qualifying"),
+    ("2026-11-29", "8:00am Qatar Grand Prix"),
+    ("2026-12-05", "6:00am Abu Dhabi Qualifying"),
+    ("2026-12-06", "5:00am Abu Dhabi Grand Prix"),
+]
+
+
 def is_relevant(holiday):
     if holiday.get("global"):
         return True
@@ -211,6 +264,9 @@ def run(input):
     window_end = date(today.year + 1, 12, 31)
     for ev in fetch_ics_events(ics_url, window_start, window_end):
         items_by_date.setdefault(ev["date"], []).append(ev["name"])
+
+    for f1_date, f1_label in F1_2026_EVENTS:
+        items_by_date.setdefault(f1_date, []).append(f1_label)
 
     weeks = build_weeks(today.year, today.month, items_by_date)
 
