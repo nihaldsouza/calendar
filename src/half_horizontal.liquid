@@ -1,42 +1,39 @@
-<div class="layout gap--xsmall">
-  <div class="columns layout--center gap--medium">
-    <div class="column w--auto">
-      <span class="value text--large">{{ month_label }}</span>
-    </div>
-    <div class="column">
-      {% if upcoming.size > 0 %}
-      <span class="label">{{ upcoming[0].short_date }} · {{ upcoming[0].name }}</span>
-      {% endif %}
-    </div>
-  </div>
+<div class="layout layout--start gap--medium">
+  <div class="layout layout--col layout--start gap--small" style="width: 620px; flex-shrink: 0;">
+    <span class="label text--large">{{ month_short }} {{ year }}</span>
 
-  <div class="grid grid--cols-7 gap--xsmall">
-    {% for wd in weekday_labels %}
-    <div class="item"><div class="content"><span class="label text--small">{{ wd }}</span></div></div>
-    {% endfor %}
-    {% for week in weeks %}
-      {% for d in week %}
-      <div class="item">
-        <div class="content">
-          {% if d.in_month == false %}
-          <span class="value text--small">&nbsp;</span>
-          {% elsif d.is_today %}
-          <span class="label label--inverted text--small">{{ d.day }}</span>
-          {% elsif d.is_dim %}
-          <span class="value text--small text--gray-50">{{ d.day }}</span>
-          {% else %}
-          <span class="value text--small">{{ d.day }}</span>
-          {% endif %}
-        </div>
-      </div>
+    <div class="grid grid--cols-7 gap--xsmall">
+      {% for wd in weekday_labels %}
+      <div class="item"><div class="content"><span class="label text--large">{{ wd }}</span></div></div>
       {% endfor %}
+      {% for week in weeks %}
+        {% for d in week %}
+        <div class="item">
+          <div class="content content--center">
+            {% if d.in_month == false %}
+            <span class="value text--large">&nbsp;</span>
+            {% elsif d.is_today %}
+            <span class="label label--inverted text--large">{{ d.day }}</span>
+            {% elsif d.is_dim %}
+            <span class="value text--large text--gray-50">{{ d.day }}</span>
+            {% else %}
+            <span class="value text--large">{{ d.day }}</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="layout layout--col layout--start layout--stretch-x grow basis--0 gap--xsmall">
+    {% for h in month_holidays %}
+    <div class="grid grid--cols-1 gap--none">
+      <span class="label label--inverted {{ holiday_text_class }}" style="background-color: var(--gray-50)">{{ h.short_date }}</span>
+      {% for name in h.names %}
+      <span class="value {{ holiday_text_class }}">{{ name }}</span>
+      {% endfor %}
+    </div>
     {% endfor %}
   </div>
-</div>
-
-<div class="title_bar">
-  <span class="title">Calendar</span>
-  {% if upcoming.size > 0 %}
-  <span class="instance">Next: {{ upcoming[0].name }}</span>
-  {% endif %}
 </div>

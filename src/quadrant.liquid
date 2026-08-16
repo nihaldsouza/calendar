@@ -1,27 +1,22 @@
-<div class="layout layout--col layout--start gap--small">
-  <span class="label text--small">{{ month_short }} {{ year }}</span>
+<div class="layout layout--col layout--start layout--stretch-x gap--small">
+  <span class="label text--large">{{ month_short }} {{ year }}</span>
 
-  <div class="grid grid--cols-7 gap--small">
+  <div class="grid grid--cols-7 gap--xsmall">
     {% for wd in weekday_labels %}
-    <div class="item"><div class="content"><span class="label">{{ wd }}</span></div></div>
+    <div class="item"><div class="content"><span class="label text--xxlarge">{{ wd }}</span></div></div>
     {% endfor %}
     {% for week in weeks %}
       {% for d in week %}
       <div class="item">
-        <div class="content">
+        <div class="content content--center">
           {% if d.in_month == false %}
-          <span class="value">&nbsp;</span>
+          <span class="value text--xxlarge">&nbsp;</span>
           {% elsif d.is_today %}
-          <span class="label label--inverted text--xlarge">{{ d.day }}</span>
+          <span class="label label--inverted text--xxlarge">{{ d.day }}</span>
+          {% elsif d.is_dim %}
+          <span class="value text--xxlarge text--gray-50">{{ d.day }}</span>
           {% else %}
-            {% if d.is_dim %}
-            <span class="value text--gray-50">{{ d.day }}</span>
-            {% else %}
-            <span class="value">{{ d.day }}</span>
-            {% endif %}
-            {% if d.is_holiday %}
-            <span class="label text--small">{{ d.holiday_short }}</span>
-            {% endif %}
+          <span class="value text--xxlarge">{{ d.day }}</span>
           {% endif %}
         </div>
       </div>
