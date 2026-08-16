@@ -9,7 +9,13 @@ serverless_language: python
 polling_url: https://date.nager.at/api/v3/PublicHolidays/2026/CA
 polling_headers: ''
 polling_body: ''
-id: 443864
+custom_fields:
+  - keyname: gcal_ics_url
+    field_type: url
+    name: Google Calendar ICS URL
+    description: "Secret iCal address from Google Calendar → Settings → your calendar → Integrate calendar"
+    optional: true
+id: 444565
 oauth_enabled: 'false'
 oauth_pkce_enabled: 'no'
 oauth_authorize_url: ''

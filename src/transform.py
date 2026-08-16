@@ -1,5 +1,6 @@
 import calendar
-from datetime import date
+import urllib.request
+from datetime import date, timedelta
 
 # Matches the region already configured on the community "Simple Calendar"
 # plugin this replaces, so behavior stays consistent.
@@ -43,7 +44,7 @@ def short_holiday_label(name, max_len=9):
     return first_word[: max_len - 1] + "…"
 
 
-def build_weeks(year, month, holidays_by_date):
+def build_weeks(year, month, items_by_date):
     cal = calendar.Calendar(firstweekday=0)  # Monday-first, matches the old view
     today = date.today()
     weeks = []
@@ -51,7 +52,7 @@ def build_weeks(year, month, holidays_by_date):
         row = []
         for d in week:
             iso = d.strftime("%Y-%m-%d")
-            names = holidays_by_date.get(iso, [])
+            names = items_by_date.get(iso, [])
             is_holiday = bool(names)
             row.append(
                 {
@@ -70,6 +71,115 @@ def build_weeks(year, month, holidays_by_date):
     return weeks
 
 
+def unfold_ics_lines(text):
+    # RFC 5545: a line starting with a space or tab is a continuation of the
+    # previous line and must be joined without the leading whitespace.
+    lines = text.replace("\r\n", "\n").split("\n")
+    unfolded = []
+    for line in lines:
+        if line[:1] in (" ", "\t") and unfolded:
+            unfolded[-1] += line[1:]
+        else:
+            unfolded.append(line)
+    return unfolded
+
+
+def unescape_ics_text(value):
+    return (
+        value.replace("\\n", " ")
+        .replace("\\N", " ")
+        .replace("\\,", ",")
+        .replace("\\;", ";")
+        .replace("\\\\", "\\")
+    )
+
+
+def parse_ics_date(value):
+    # DTSTART values look like "20260802" (all-day) or "20260802T130000Z"
+    # (timed) — we only care about the calendar date for a monthly grid.
+    return date(int(value[0:4]), int(value[4:6]), int(value[6:8]))
+
+
+def expand_rrule(start, freq, interval, window_end):
+    # Handles the recurrence patterns realistic for a personal/family
+    # calendar (yearly birthdays, weekly standing plans). COUNT/UNTIL/BYDAY
+    # aren't parsed — recurrences just run to the window edge.
+    occurrences = []
+    current = start
+    guard = 0
+    while current <= window_end and guard < 800:
+        guard += 1
+        if current >= start:
+            occurrences.append(current)
+        if freq == "YEARLY":
+            try:
+                current = current.replace(year=current.year + interval)
+            except ValueError:  # Feb 29 in a non-leap year
+                current = current.replace(year=current.year + interval, day=28)
+        elif freq == "MONTHLY":
+            month_index = current.month - 1 + interval
+            year = current.year + month_index // 12
+            month = month_index % 12 + 1
+            day = min(current.day, calendar.monthrange(year, month)[1])
+            current = date(year, month, day)
+        elif freq == "WEEKLY":
+            current = current + timedelta(weeks=interval)
+        elif freq == "DAILY":
+            current = current + timedelta(days=interval)
+        else:
+            break
+    return occurrences
+
+
+def parse_ics_events(ics_text, window_start, window_end):
+    events = []
+    lines = unfold_ics_lines(ics_text)
+    in_event = False
+    dtstart = None
+    summary = None
+    rrule = None
+    for line in lines:
+        if line.startswith("BEGIN:VEVENT"):
+            in_event, dtstart, summary, rrule = True, None, None, None
+            continue
+        if line.startswith("END:VEVENT"):
+            if dtstart:
+                title = unescape_ics_text(summary) if summary else "(untitled)"
+                if rrule:
+                    freq = rrule.get("FREQ", "")
+                    interval = int(rrule.get("INTERVAL", "1"))
+                    for occ in expand_rrule(dtstart, freq, interval, window_end):
+                        if window_start <= occ <= window_end:
+                            events.append({"date": occ.isoformat(), "name": title})
+                elif window_start <= dtstart <= window_end:
+                    events.append({"date": dtstart.isoformat(), "name": title})
+            in_event = False
+            continue
+        if not in_event or ":" not in line:
+            continue
+        key, _, value = line.partition(":")
+        prop = key.split(";", 1)[0]
+        if prop == "DTSTART":
+            dtstart = parse_ics_date(value)
+        elif prop == "SUMMARY":
+            summary = value
+        elif prop == "RRULE":
+            rrule = dict(part.split("=", 1) for part in value.split(";") if "=" in part)
+    return events
+
+
+def fetch_ics_events(ics_url, window_start, window_end):
+    if not ics_url:
+        return []
+    try:
+        body = urllib.request.urlopen(ics_url, timeout=10).read().decode("utf-8", errors="replace")
+        return parse_ics_events(body, window_start, window_end)
+    except Exception:
+        # A transient fetch/parse failure shouldn't take down the holiday
+        # calendar — just show holidays until the next successful refresh.
+        return []
+
+
 def run(input):
     today = date.today()
     # trmnlp's local dev server wraps an array-root polling response as
@@ -78,21 +188,32 @@ def run(input):
     holidays = [h for h in raw_holidays if is_relevant(h)]
     # A date can carry more than one relevant holiday (e.g. a national and a
     # regional one falling on the same day), so each date maps to a list.
-    holidays_by_date = {}
+    items_by_date = {}
     for h in holidays:
-        holidays_by_date.setdefault(h["date"], []).append(h["localName"])
+        items_by_date.setdefault(h["date"], []).append(h["localName"])
 
-    weeks = build_weeks(today.year, today.month, holidays_by_date)
+    custom_fields = (
+        input.get("trmnl", {}).get("plugin_settings", {}).get("custom_fields_values", {})
+        if isinstance(input, dict)
+        else {}
+    )
+    ics_url = custom_fields.get("gcal_ics_url")
+    window_start = date(today.year, 1, 1)
+    window_end = date(today.year + 1, 12, 31)
+    for ev in fetch_ics_events(ics_url, window_start, window_end):
+        items_by_date.setdefault(ev["date"], []).append(ev["name"])
 
-    month_holidays = sorted(
+    weeks = build_weeks(today.year, today.month, items_by_date)
+
+    month_items = sorted(
         (
             {"date": d, "names": names}
-            for d, names in holidays_by_date.items()
+            for d, names in items_by_date.items()
             if d[:7] == today.isoformat()[:7]
         ),
         key=lambda h: h["date"],
     )
-    for h in month_holidays:
+    for h in month_items:
         h_date = date.fromisoformat(h["date"])
         h["short_date"] = h_date.strftime("%b %-d")
         h["is_past"] = h_date < today
@@ -100,7 +221,7 @@ def run(input):
     upcoming = sorted(
         (
             {"date": d, "name": ", ".join(names)}
-            for d, names in holidays_by_date.items()
+            for d, names in items_by_date.items()
             if d >= today.isoformat()
         ),
         key=lambda h: h["date"],
@@ -108,11 +229,11 @@ def run(input):
     for h in upcoming:
         h["short_date"] = date.fromisoformat(h["date"]).strftime("%b %-d")
 
-    # Each date contributes one badge line plus one line per holiday name.
+    # Each date contributes one badge line plus one line per item name.
     # Past ~6 lines, text--large starts clipping the bottom half on half_vertical,
     # so drop to text--small to fit a busier month instead of cutting entries off.
-    holiday_lines = len(month_holidays) + sum(len(h["names"]) for h in month_holidays)
-    holiday_text_class = "text--large" if holiday_lines <= 6 else "text--small"
+    item_lines = len(month_items) + sum(len(h["names"]) for h in month_items)
+    holiday_text_class = "text--large" if item_lines <= 6 else "text--small"
 
     return {
         "month_label": today.strftime("%B").upper(),
@@ -121,6 +242,6 @@ def run(input):
         "weekday_labels": ["M", "T", "W", "T", "F", "S", "S"],
         "weeks": weeks,
         "upcoming": upcoming[:3],
-        "month_holidays": month_holidays,
+        "month_items": month_items,
         "holiday_text_class": holiday_text_class,
     }
