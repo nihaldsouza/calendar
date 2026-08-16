@@ -283,7 +283,7 @@ def run(input):
         key=lambda h: h["date"],
     )
     for h in upcoming_items:
-        h["short_date"] = date.fromisoformat(h["date"]).strftime("%b %-d")
+        h["short_date"] = date.fromisoformat(h["date"]).strftime("%b %-d (%A)")
 
     return {
         "month_label": today.strftime("%B").upper(),
