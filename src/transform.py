@@ -7,27 +7,37 @@ from datetime import date, timedelta
 REGION = "CA-BC"
 
 # Text size in the item list is fixed (no shrink-to-fit), so instead the
-# item count is capped to what actually fits in the list area. Despite the
+# rendered line count is capped to what actually fits in the list area.
+# Each date badge is one line, plus one more line per item name on that
+# date — a date with two sessions (e.g. Sprint + Qualifying) costs an
+# extra line just like a date with two holidays would. Despite the
 # different layouts (stacked under the grid in full/half_vertical, beside
 # it in half_horizontal), the available list height works out the same —
 # half_horizontal's box is only half the device height, offsetting its
 # side-by-side layout advantage. Tuned by rendering dense fixture data
 # locally via trmnlp and counting rows before overflow.
-MAX_ITEMS = 6
+MAX_LIST_LINES = 12
 
 
-# 2026 F1 qualifying + race sessions only (no practice, no sprint sessions).
-# Times converted from UTC to fixed Pacific Standard Time (UTC-8, no DST
-# adjustment) at conversion time — source: f1calendar.com/timezone/Etc-UTC.
+# 2026 F1 qualifying, sprint qualifying, sprint, and race sessions (no
+# practice). Times converted from UTC to fixed Pacific Standard Time
+# (UTC-8, no DST adjustment) at conversion time — source:
+# f1calendar.com/timezone/Etc-UTC.
 F1_2026_EVENTS = [
     ("2026-03-06", "9:00pm Australian Qualifying"),
     ("2026-03-07", "8:00pm Australian Grand Prix"),
+    ("2026-03-12", "11:30pm Chinese Sprint Qualifying"),
+    ("2026-03-13", "7:00pm Chinese Sprint"),
     ("2026-03-13", "11:00pm Chinese Qualifying"),
     ("2026-03-14", "11:00pm Chinese Grand Prix"),
     ("2026-03-27", "10:00pm Japanese Qualifying"),
     ("2026-03-28", "10:00pm Japanese Grand Prix"),
+    ("2026-05-01", "1:30pm Miami Sprint Qualifying"),
+    ("2026-05-02", "9:00am Miami Sprint"),
     ("2026-05-02", "1:00pm Miami Qualifying"),
     ("2026-05-03", "10:00am Miami Grand Prix"),
+    ("2026-05-22", "1:30pm Canadian Sprint Qualifying"),
+    ("2026-05-23", "9:00am Canadian Sprint"),
     ("2026-05-23", "1:00pm Canadian Qualifying"),
     ("2026-05-24", "1:00pm Canadian Grand Prix"),
     ("2026-06-06", "7:00am Monaco Qualifying"),
@@ -36,12 +46,16 @@ F1_2026_EVENTS = [
     ("2026-06-14", "6:00am Barcelona Grand Prix"),
     ("2026-06-27", "7:00am Austrian Qualifying"),
     ("2026-06-28", "6:00am Austrian Grand Prix"),
+    ("2026-07-03", "8:30am British Sprint Qualifying"),
+    ("2026-07-04", "4:00am British Sprint"),
     ("2026-07-04", "8:00am British Qualifying"),
     ("2026-07-05", "7:00am British Grand Prix"),
     ("2026-07-18", "7:00am Belgian Qualifying"),
     ("2026-07-19", "6:00am Belgian Grand Prix"),
     ("2026-07-25", "7:00am Hungarian Qualifying"),
     ("2026-07-26", "6:00am Hungarian Grand Prix"),
+    ("2026-08-21", "7:30am Dutch Sprint Qualifying"),
+    ("2026-08-22", "3:00am Dutch Sprint"),
     ("2026-08-22", "7:00am Dutch Qualifying"),
     ("2026-08-23", "6:00am Dutch Grand Prix"),
     ("2026-09-05", "7:00am Italian Qualifying"),
@@ -52,6 +66,8 @@ F1_2026_EVENTS = [
     ("2026-09-26", "4:00am Azerbaijan Grand Prix"),
     ("2026-10-03", "2:00am Bahrain Qualifying"),
     ("2026-10-04", "12:00am Bahrain Grand Prix"),
+    ("2026-10-09", "5:30am Singapore Sprint Qualifying"),
+    ("2026-10-10", "2:00am Singapore Sprint"),
     ("2026-10-10", "6:00am Singapore Qualifying"),
     ("2026-10-11", "5:00am Singapore Grand Prix"),
     ("2026-10-24", "2:00pm United States Qualifying"),
@@ -104,6 +120,20 @@ def short_holiday_label(name, max_len=9):
     if len(first_word) <= max_len:
         return first_word
     return first_word[: max_len - 1] + "…"
+
+
+# Longest line in the upcoming-items list is the half_horizontal layout's
+# list column (~504px wide at text--large) — measured directly against the
+# rendered container in Chrome (getBoundingClientRect), not assumed. Budget
+# is a conservative character count under that width (leaves margin for
+# render-engine font differences), not a pixel-accurate fit.
+NAME_MAX_LEN = 38
+
+
+def truncate_at_word(text, max_len=NAME_MAX_LEN):
+    if len(text) <= max_len:
+        return text
+    return text[:max_len].rsplit(" ", 1)[0] + "…"
 
 
 def build_weeks(year, month, items_by_date):
@@ -276,7 +306,7 @@ def run(input):
     # than shrinking the font to squeeze more in.
     upcoming_items = sorted(
         (
-            {"date": d, "names": names}
+            {"date": d, "names": [truncate_at_word(n) for n in names]}
             for d, names in items_by_date.items()
             if d >= today.isoformat()
         ),
@@ -285,11 +315,19 @@ def run(input):
     for h in upcoming_items:
         h["short_date"] = date.fromisoformat(h["date"]).strftime("%b %-d (%A)")
 
+    shown_items = []
+    lines_used = 0
+    for h in upcoming_items:
+        lines_used += 1 + len(h["names"])
+        if lines_used > MAX_LIST_LINES:
+            break
+        shown_items.append(h)
+
     return {
         "month_label": today.strftime("%B").upper(),
         "month_short": today.strftime("%b").upper(),
         "year": today.year,
         "weekday_labels": ["M", "T", "W", "T", "F", "S", "S"],
         "weeks": weeks,
-        "upcoming_items": upcoming_items[:MAX_ITEMS],
+        "upcoming_items": shown_items,
     }
